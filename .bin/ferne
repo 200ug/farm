@@ -288,9 +288,10 @@ desc_handler() {
 }
 
 usage() {
-    echo "[?] usage: $0 [init|private|help]"
+    echo "[?] usage: $0 [init|private|rename|desc|help]"
     echo "      init             create new mirrored (public) repository"
     echo "      private          create new mirrored (private) repository"
+    echo "      restore          restore mirrors to a freshly cloned repository"
     echo "      rename <name>    rename the (existing) mirrors"
     echo "      desc <content>   set description to mirrors"
     echo "      help             print this menu"

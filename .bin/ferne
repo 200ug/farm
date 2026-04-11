@@ -1,0 +1,324 @@
+#!/usr/bin/env bash
+
+# mirrors format: "<platform> <username> <ssh_template>"
+# example mirrors config (note that order matters here: the first one will be the primary origin):
+#   forgejo     2ug     ssh://git@codeberg.org/2ug/{repo}.git
+#   github      200ug   git@github.com:200ug/{repo}.git
+#   
+# tokens file format (raw, i.e. before encryption):
+#   GITHUB_TOKEN <gh_token>
+#   FORGEJO_TOKEN <fj_token>
+
+set -euo pipefail
+
+DESCRIPTION="Repository created via the ferne mirroring system"
+MIRRORS_CFG="$HOME/.config/ferne/mirrors"
+# gpg --encrypt --recipient 1530F5132A1228578D2B4168995EFD5C1B532B3E tokens && shred -u tokens
+TOKENS_ENV="$HOME/.config/ferne/tokens.gpg"
+
+GITHUB_API_BASE="https://api.github.com"
+FORGEJO_API_BASE="https://codeberg.org/api/v1"
+# todo: add cgit support later
+
+die() { echo "[!] error: $*" >&2; exit 1; }
+
+require_cmd() {
+    command -v "$1" &>/dev/null || die "'$1' required but not found in PATH"
+}
+
+export_tokens() {
+    if [[ ! -f "$TOKENS_ENV" ]]; then
+        die "no tokens file found at $TOKENS_ENV"
+    fi
+
+    # gpg-agent caches auth, so we only need to manually auth once over a single session
+    _decrypted=$(gpg --quiet --decrypt "$TOKENS_ENV" 2>/dev/null) || die "failed to decrypt $TOKENS_ENV"
+
+    while IFS= read -r _line; do
+        [[ -z "$_line" || "$_line" =~ ^[[:space:]]*# ]] && continue
+        parts=(${_line// / })
+        # prevent accidental overwrites
+        if [[ -z "${!parts[0]:-}" ]]; then
+            # echo "key: '${parts[0]}', value: '${parts[1]}'"
+            export "${parts[0]}=${parts[1]}"
+        else
+            die "environment variable '${parts[0]}' has already been set, aborting instead of overwriting"
+        fi
+    done <<< "$_decrypted"
+
+    unset _decrypted
+}
+
+parse_mirrors() {
+    [[ -f "$MIRRORS_CFG" ]] || die "no mirrors config found at $MIRRORS_CFG"
+
+    while IFS= read -r line; do
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue # skip blanks & comments
+        read -r platform username ssh_template <<< "$line"
+        mirror_platforms+=("$platform")
+        mirror_users+=("$username")
+        mirror_urls+=("${ssh_template//\{repo\}/$repo_name}")
+    done < "$MIRRORS_CFG"
+
+    [[ ${#mirror_platforms[@]} -gt 0 ]] || die "no mirrors defined in $MIRRORS_CFG"
+}
+
+repo_exists() {
+    local platform="$1" username="$2"
+    local url status token
+
+    case "$platform" in
+        github)
+            token="$GITHUB_TOKEN"
+            url="$GITHUB_API_BASE/repos/$username/$repo_name"
+            ;;
+        forgejo)
+            token="$FORGEJO_TOKEN"
+            url="$FORGEJO_API_BASE/repos/$username/$repo_name"
+            ;;
+    esac
+
+    status=$(curl -s -o /dev/null -w "%{http_code}" \
+        -H "Authorization: Bearer $token" \
+        "$url")
+
+    [[ "$status" == "200" ]]
+}
+
+create_repo() {
+    local platform="$1" username="$2"
+    local url token payload response http_status_code
+
+    local private_str_var="false"
+    $private && private_str_var="true"
+
+    case "$platform" in
+        github)
+            token="$GITHUB_TOKEN"
+            url="$GITHUB_API_BASE/user/repos"
+            payload=$(jq -n \
+                --arg name "$repo_name" \
+                --arg desc "$DESCRIPTION" \
+                --argjson private "$private_str_var" \
+                '{name: $name, description: $desc, private: $private, auto_init: false}')
+            ;;
+        forgejo)
+            token="$FORGEJO_TOKEN"
+            url="$FORGEJO_API_BASE/user/repos"
+            payload=$(jq -n \
+                --arg name "$repo_name" \
+                --arg desc "$DESCRIPTION" \
+                --argjson private "$private_str_var" \
+                '{name: $name, description: $desc, private: $private, auto_init: false}')
+            ;;
+    esac
+
+    if repo_exists "$platform" "$username"; then
+        echo "[+] repository $repo_name already exists on $platform, skipping creation"
+        return
+    fi
+
+    printf "[~] creating new repository $repo_name on $platform... "
+
+    response=$(curl -s -w "\n%{http_code}" \
+        -X POST \
+        -H "Authorization: Bearer $token" \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json" \
+        -d "$payload" \
+        "$url")
+
+    http_status_code=$(echo "$response" | tail -1)
+
+    case "$http_status_code" in
+        201)
+            printf "success!\n"
+            ;;
+        *)
+            printf "failed\n"
+            die "api comms failed with unexpected http status $http_status_code"
+            ;;
+    esac
+}
+
+repo_init() {
+    parse_mirrors
+
+    if ! git remote get-url origin &>/dev/null; then
+        git remote add origin "${mirror_urls[0]}"
+        echo "[+] created origin remote: ${mirror_urls[0]}"
+    fi
+
+    # clear existing push urls so we rebuild from scratch
+    git config --unset-all remote.origin.pushurl 2>/dev/null || true
+
+    for i in "${!mirror_platforms[@]}"; do
+        create_repo "${mirror_platforms[$i]}" "${mirror_users[$i]}" # skips if one already exists (bravely assuming no naming conflicts)
+        git remote set-url --add --push origin "${mirror_urls[$i]}"
+        echo "[+] new remote push url: ${mirror_urls[$i]}"
+    done
+}
+
+readme_init() {
+    local links=""
+
+    for i in "${!mirror_platforms[@]}"; do
+        local label username="${mirror_users[$i]}"
+
+        case "${mirror_platforms[$i]}" in
+            github)  label="[Github](https://github.com/$username/$repo_name)" ;;
+            forgejo) label="[Codeberg](https://codeberg.org/$username/$repo_name)" ;;
+        esac
+
+        [[ -n "$links" ]] && links="$links / "
+        links="$links$label"
+    done
+
+    echo -e "---\n\n###### Mirrors: $links" > README.md
+}
+
+rename_repo() {
+    local platform="$1" username="$2" new_name="$3"
+    local url token payload response http_status_code
+
+    case "$platform" in
+        github)
+            token="$GITHUB_TOKEN"
+            url="$GITHUB_API_BASE/repos/$username/$repo_name"
+            ;;
+        forgejo)
+            token="$FORGEJO_TOKEN"
+            url="$FORGEJO_API_BASE/repos/$username/$repo_name"
+            ;;
+    esac
+
+    payload=$(jq -n --arg name "$new_name" '{name: $name}')
+
+    printf "[~] renaming $repo_name -> $new_name on $platform... "
+
+    response=$(curl -s -w "\n%{http_code}" \
+        -X PATCH \
+        -H "Authorization: Bearer $token" \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json" \
+        -d "$payload" \
+        "$url")
+
+    http_status_code=$(echo "$response" | tail -1)
+
+    case "$http_status_code" in
+        200)
+            printf "success!\n"
+            ;;
+        *)
+            printf "failed\n"
+            die "api comms failed with unexpected http status $http_status_code"
+            ;;
+    esac
+}
+
+rename_handler() {
+    local new_name="$1"
+    parse_mirrors
+
+    for i in "${!mirror_platforms[@]}"; do
+        rename_repo "${mirror_platforms[$i]}" "${mirror_users[$i]}" "$new_name"
+    done
+
+    # rebuild remote urls with new name
+    git config --unset-all remote.origin.pushurl 2>/dev/null || true
+
+    git remote set-url origin "${mirror_urls[0]//$repo_name/$new_name}"
+    echo "[+] updated origin: ${mirror_urls[0]//$repo_name/$new_name}"
+
+    for i in "${!mirror_urls[@]}"; do
+        local new_url="${mirror_urls[$i]//$repo_name/$new_name}"
+        git remote set-url --add --push origin "$new_url"
+        echo "[+] updated push url: $new_url"
+    done
+}
+
+describe_repo() {
+    local platform="$1" username="$2" description="$3"
+    local url token payload response http_status_code
+
+    case "$platform" in
+        github)
+            token="$GITHUB_TOKEN"
+            url="$GITHUB_API_BASE/repos/$username/$repo_name"
+            ;;
+        forgejo)
+            token="$FORGEJO_TOKEN"
+            url="$FORGEJO_API_BASE/repos/$username/$repo_name"
+            ;;
+    esac
+
+    payload=$(jq -n --arg desc "$description" '{description: $desc}')
+
+    printf "[~] updating description on $platform... "
+
+    response=$(curl -s -w "\n%{http_code}" \
+        -X PATCH \
+        -H "Authorization: Bearer $token" \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json" \
+        -d "$payload" \
+        "$url")
+
+    http_status_code=$(echo "$response" | tail -1)
+
+    case "$http_status_code" in
+        200)
+            printf "success!\n"
+            ;;
+        *)
+            printf "failed\n"
+            die "api comms failed with unexpected http status $http_status_code"
+            ;;
+    esac
+}
+
+desc_handler() {
+    local description="$1"
+    parse_mirrors
+
+    for i in "${!mirror_platforms[@]}"; do
+        describe_repo "${mirror_platforms[$i]}" "${mirror_users[$i]}" "$description"
+    done
+}
+
+usage() {
+    echo "[?] usage: $0 [init|private|help]"
+    echo "      init             create new mirrored (public) repository"
+    echo "      private          create new mirrored (private) repository"
+    echo "      rename <name>    rename the (existing) mirrors"
+    echo "      desc <content>   set description to mirrors"
+    echo "      help             print this menu"
+}
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not inside a git repository"
+repo_name="$(basename "$repo_root")"
+current_branch="$(git symbolic-ref --short HEAD 2>/dev/null)" || die "could not read branch name"
+
+mirror_platforms=()
+mirror_users=()
+mirror_urls=()
+
+private=false
+
+[[ $# -eq 0 || $# -gt 2 ]] && die "invalid arguments, see help for more details"
+
+require_cmd gpg
+require_cmd git
+require_cmd jq
+require_cmd curl
+
+case "$1" in
+    init) export_tokens && repo_init && readme_init ;;
+    private) private=true; export_tokens && repo_init && readme_init ;;
+    rename) [[ $# -ne 2 ]] && die "'rename' requires a new name argument"; export_tokens && rename_handler "$2" ;;
+    desc) [[ $# -ne 2 ]] && die "'desc' requires a content argument"; export_tokens && desc_handler "$2" ;;
+    help|-h) usage; exit 0 ;;
+    *) die "unknown option '$1'" ;;
+esac
+

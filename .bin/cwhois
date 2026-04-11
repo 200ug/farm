@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+# https://bgp.tools/kb/api
+
+browser=0
+
+while getopts "b" opt; do
+    case $opt in
+        b) browser=1 ;;
+    esac
+done
+
+# must shift as we pass $* to whois
+shift $((OPTIND - 1))
+
+ip=${*:-$(cat)}
+output=$(whois -h bgp.tools " -v $ip")
+echo "$output"
+
+if [[ $browser -eq 1 ]]; then
+    asn=$(echo "$output" | tail -n 1 | grep -oE '^[0-9]+')
+
+    if [[ -n "$asn" ]]; then
+        url="https://bgp.tools/as/$asn"
+        echo "[~] opening $url in browser"
+
+        if command -v xdg-open &>/dev/null; then
+            xdg-open "$url" &>/dev/null &
+        elif command -v open &>/dev/null; then
+            open "$url"
+        fi
+    fi
+fi
+

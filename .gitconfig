@@ -1,0 +1,23 @@
+[init]
+	defaultBranch = master
+[user]
+    name = 2u
+	email = a@dyyni.org
+	signingkey = 995EFD5C1B532B3E
+[core]
+	editor = nvim
+	autocrlf = input
+	safecrlf = false
+    excludesfile = ~/.config/gitignore
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+[alias]
+    st = status
+	zip = archive --format=zip HEAD
+[commit]
+	gpgsign = true
+[pull]
+	rebase = true

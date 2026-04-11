@@ -1,0 +1,16 @@
+[window]
+decorations = "None"
+startup_mode = "Maximized"
+dynamic_title = false
+option_as_alt = "OnlyLeft"
+
+[font]
+normal.family = "JetBrainsMono NFM"
+bold.family = "JetBrainsMono NFM"
+italic.family = "JetBrainsMono NFM"
+bold_italic.family = "JetBrainsMono NFM"
+size=14.0
+
+[terminal]
+shell = "/opt/homebrew/bin/tmux" # TODO: update
+

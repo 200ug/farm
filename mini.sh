@@ -41,6 +41,7 @@ linux_install() {
     local apt_pkgs=(
         # gui apps
         libreoffice
+        keepassxc
         qbittorrent
 	    alacritty
         # gui apps from vendor repos

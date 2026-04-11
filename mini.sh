@@ -56,32 +56,8 @@ linux_install() {
         gnupg
         neovim
         tmux
-        # sway pre-requisites for intel hw (https://github.com/swaywm/sway/wiki)
-        intel-microcode         # cpu security & stability patches
-        mesa-vulkan-drivers     # modern 3d graphics support
-        va-driver-all
-        intel-gpu-tools         # gpu monitoring & troubleshooting
-        # direct sway packages (wm)
-        greetd                  # minimal login manager
-        sway
-        swaylock                # screen locker
-        swayidle                # idle management deamon
-        grim                    # screenshot util
-        # audio
-        pipewire
-        pipewire-pulse
-        wireplumber
-        pipewire-alsa
-        # bluetooth
-        bluetooth
-        bluez
-        libspa-0.2-bluetooth
-        blueman                 # gtk manager
-        # other system utils
-        shutdown
-        brightnessctl
-        network-manager         # nmcli, nmtui
         # misc
+        shutdown
         ffmpeg
         mpv
         stow

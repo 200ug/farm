@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-DESCRIPTION="Repository created via the ferne mirroring system"
+PLACEHOLDER_DESCRIPTION="Repository created via the ferne mirroring system"
 MIRRORS_CFG="$HOME/.config/ferne/mirrors"
 # gpg --encrypt --recipient 1530F5132A1228578D2B4168995EFD5C1B532B3E tokens && shred -u tokens
 TOKENS_ENV="$HOME/.config/ferne/tokens.gpg"
@@ -98,7 +98,7 @@ create_repo() {
             url="$GITHUB_API_BASE/user/repos"
             payload=$(jq -n \
                 --arg name "$repo_name" \
-                --arg desc "$DESCRIPTION" \
+                --arg desc "$PLACEHOLDER_DESCRIPTION" \
                 --argjson private "$private_str_var" \
                 '{name: $name, description: $desc, private: $private, auto_init: false}')
             ;;
@@ -107,7 +107,7 @@ create_repo() {
             url="$FORGEJO_API_BASE/user/repos"
             payload=$(jq -n \
                 --arg name "$repo_name" \
-                --arg desc "$DESCRIPTION" \
+                --arg desc "$PLACEHOLDER_DESCRIPTION" \
                 --argjson private "$private_str_var" \
                 '{name: $name, description: $desc, private: $private, auto_init: false}')
             ;;
@@ -175,6 +175,43 @@ readme_init() {
     done
 
     echo -e "---\n\n###### Mirrors: $links" > README.md
+}
+
+restore_handler() {
+    local target_name="$1"
+    repo_name="$target_name"
+    parse_mirrors
+
+    # verify repos exist on all mirrors before configuring remotes
+    for i in "${!mirror_platforms[@]}"; do
+        local platform="${mirror_platforms[$i]}"
+        local username="${mirror_users[$i]}"
+
+        printf "[~] checking if $repo_name exists on $platform... "
+        if repo_exists "$platform" "$username"; then
+            printf "found\n"
+        else
+            printf "not found\n"
+            die "repository $repo_name does not exist on $platform, cannot restore"
+        fi
+    done
+
+    # configure git remotes (same logic as repo_init but without creating repos)
+    if ! git remote get-url origin &>/dev/null; then
+        git remote add origin "${mirror_urls[0]}"
+        echo "[+] created origin remote: ${mirror_urls[0]}"
+    else
+        git remote set-url origin "${mirror_urls[0]}"
+        echo "[+] updated origin remote: ${mirror_urls[0]}"
+    fi
+
+    # clear existing push urls so we rebuild from scratch
+    git config --unset-all remote.origin.pushurl 2>/dev/null || true
+
+    for i in "${!mirror_platforms[@]}"; do
+        git remote set-url --add --push origin "${mirror_urls[$i]}"
+        echo "[+] added remote push url: ${mirror_urls[$i]}"
+    done
 }
 
 rename_repo() {
@@ -288,12 +325,12 @@ desc_handler() {
 }
 
 usage() {
-    echo "[?] usage: $0 [init|private|rename|desc|help]"
+    echo "[?] usage: $0 [cmd]"
     echo "      init             create new mirrored (public) repository"
     echo "      private          create new mirrored (private) repository"
-    echo "      restore          restore mirrors to a freshly cloned repository"
     echo "      rename <name>    rename the (existing) mirrors"
     echo "      desc <content>   set description to mirrors"
+    echo "      restore <name>   restore mirror remotes for existing repository"
     echo "      help             print this menu"
 }
 
@@ -319,6 +356,7 @@ case "$1" in
     private) private=true; export_tokens && repo_init && readme_init ;;
     rename) [[ $# -ne 2 ]] && die "'rename' requires a new name argument"; export_tokens && rename_handler "$2" ;;
     desc) [[ $# -ne 2 ]] && die "'desc' requires a content argument"; export_tokens && desc_handler "$2" ;;
+    restore) [[ $# -ne 2 ]] && die "'restore' requires a repository name argument"; export_tokens && restore_handler "$2" ;;
     help|-h) usage; exit 0 ;;
     *) die "unknown option '$1'" ;;
 esac

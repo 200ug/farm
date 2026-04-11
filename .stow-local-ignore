@@ -1,7 +1,6 @@
-*.md
-.git
-.gitignore
-.gitkeep
-packer_compiled.lua
-mini.sh
-
+.*\.md
+\.git
+\.gitignore
+\.gitkeep
+packer_compiled\.lua
+mini\.sh

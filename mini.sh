@@ -41,8 +41,8 @@ linux_install() {
     local apt_pkgs=(
         # gui apps
         libreoffice
-        veracrypt
         qbittorrent
+	    alacritty
         # gui apps from vendor repos
         mullvad-vpn
         signal-desktop
@@ -54,10 +54,10 @@ linux_install() {
         zsh-autosuggestions
         fzf
         gnupg
-        neovim
+        scdaemon                # required for hardware keys
+        # neovim                # apt's neovim is too old, we should install it from https://github.com/neovim/neovim/releases/
         tmux
         # misc
-        shutdown
         ffmpeg
         mpv
         stow
@@ -94,16 +94,4 @@ install_veracrypt_deb() {
     rm -f "$tmpdeb"
 }
 
-# set the following as the contents of /etc/greetd/config.toml
-#
-# [default_session]
-# command = "/usr/sbin/agreety --cmd sway"
-# user = "_greetd"
-
-# bt & wifi (after installing the packages)
-# for networkmanager to work properly, we need to (manually) delete existing entries from /etc/network/interfaces
-#
-# sudo systemctl enable --now NetworkManager bluetooth
-# sudo usermod -aG bluetooth $USER
-# systemctl --user restart wireplumber pipewire pipewire-pulse
-
+linux_install

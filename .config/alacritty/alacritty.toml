@@ -5,12 +5,12 @@ dynamic_title = false
 option_as_alt = "OnlyLeft"
 
 [font]
-normal.family = "JetBrainsMono NFM"
-bold.family = "JetBrainsMono NFM"
-italic.family = "JetBrainsMono NFM"
-bold_italic.family = "JetBrainsMono NFM"
-size=14.0
+normal.family = "JetBrainsMono Nerd Font"
+bold.family = "JetBrainsMono Nerd Font"
+italic.family = "JetBrainsMono Nerd Font"
+bold_italic.family = "JetBrainsMono Nerd Font"
+size=10.0
 
 [terminal]
-shell = "/opt/homebrew/bin/tmux" # TODO: update
+shell = "/usr/bin/tmux"
 

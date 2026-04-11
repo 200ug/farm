@@ -1,3 +1,5 @@
+require("plugins") -- packer.nvim
+
 -- disable netrw (should be at the very start of init.lua)
 vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
@@ -39,5 +41,4 @@ require("nvim-tree").setup()
 require("mappings")
 require("lsp")
 require("treesitter")
-require("plugins") -- packer.nvim
 

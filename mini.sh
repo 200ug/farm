@@ -82,6 +82,7 @@ linux_install() {
     sudo apt update
 
     install_veracrypt_deb
+    install_neovim_release
 
     sudo apt install -y ca-certificates curl wget gnupg apt-transport-https
     sudo DEBIAN_FRONTEND=noninteractive apt install -y "${apt_pkgs[@]}" || echo "[!] general package installation failed"
@@ -90,9 +91,20 @@ linux_install() {
 install_veracrypt_deb() {
     require_cmd curl
     local tmpdeb=$(mktemp --suffix=.deb)
-    curl -fsSL "https://launchpad.net/veracrypt/trunk/1.26.24/+download/veracrypt-console-1.26.24-Debian-13-amd64.deb" -o "$tmpdeb"
-    sudo DEBIAN_FRONTEND=noninteractive apt install -y "$tmpdeb" || echo "[!] veracrypt deb installation failed"
-    rm -f "$tmpdeb"
+    curl -fsSL https://launchpad.net/veracrypt/trunk/1.26.24/+download/veracrypt-console-1.26.24-Debian-13-amd64.deb -o $tmpdeb
+    sudo DEBIAN_FRONTEND=noninteractive apt install -y $tmpdeb || echo "[!] veracrypt deb installation failed"
+    rm -f $tmpdeb
+}
+
+install_neovim_release() {
+    require_cmd curl
+    local tmpdir=$(mktemp -d)
+    curl -Lo $tmpdir/nvim-linux-arm64.tar.gz https://github.com/neovim/neovim/releases/download/v0.12.1/nvim-linux-arm64.tar.gz
+    tar -xzf $tmpdir/nvim-linux-arm64.tar.gz -C "$tmpdir/"
+    mkdir -p ~/.local/
+    cp -r $tmpdir/nvim-linux-arm64/* ~/.local/
+    rm -rf $tmpdir
 }
 
 linux_install
+

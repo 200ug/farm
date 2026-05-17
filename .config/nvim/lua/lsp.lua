@@ -17,26 +17,29 @@ cmp.setup({
 
 -- disabled by default, enabled only for filetypes which have language server configured
 cmp.setup.filetype(
-    { "python", "go", "rust", "c" }, -- to disable suggestions (but still keep the lsp running), remove ext from here
+    -- to disable suggestions (but still keep the lsp running), simply remove the ext from here
+    { "python", "go", "rust", "c", "typescript", "typescriptreact", "javascript", "javascriptreact" },
     { enabled = true }
 )
 
 local capabilities = require("cmp_nvim_lsp").default_capabilities()
 
-vim.lsp.config.pyright = { capabilities = capabilities }       -- python
-vim.lsp.config.clangd = { capabilities = capabilities }        -- c/cpp
-vim.lsp.config.gopls = { capabilities = capabilities }         -- go
-vim.lsp.config.rust_analyzer = { capabilities = capabilities } -- rust
+vim.lsp.config.pyright = { capabilities = capabilities }        -- python
+vim.lsp.config.clangd = { capabilities = capabilities }         -- c/cpp
+vim.lsp.config.gopls = { capabilities = capabilities }          -- golang
+vim.lsp.config.rust_analyzer = { capabilities = capabilities }  -- rustlang
+vim.lsp.config.ts_ls = { capabilities = capabilities }          -- typescript/javascript
 
 -- auto enable lsp for correct filetypes
 vim.api.nvim_create_autocmd("FileType", {
-    pattern = {"python", "c", "cpp", "go", "rust"},
+    pattern = {"python", "c", "cpp", "go", "rust", "typescript", "typescriptreact", "javascript", "javascriptreact"},
     callback = function(args)
         vim.lsp.enable({
             "pyright",
             "clangd",
             "gopls",
             "rust_analyzer",
+            "ts_ls",
         })
     end,
 })

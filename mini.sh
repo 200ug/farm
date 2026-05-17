@@ -59,6 +59,8 @@ linux_install() {
         # neovim                # apt's neovim is too old, we should install it from https://github.com/neovim/neovim/releases/
         tmux
         # misc
+        wl-clipboard
+        sxiv
         ffmpeg
         mpv
         stow

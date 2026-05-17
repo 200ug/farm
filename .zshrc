@@ -3,7 +3,7 @@
 
 PS1="%{$(tput setaf 15)%}%n%{$(tput setaf 39)%}@%{$(tput setaf 15)%}%m %{$(tput setaf 39)%}%1~ %{$(tput sgr0)%}$ "
 
-HISTFILE="~/.zsh_history"
+HISTFILE="$HOME/.zsh_history"
 HISTSIZE=100000
 SAVEHIST=100000
 

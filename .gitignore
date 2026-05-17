@@ -1,3 +1,5 @@
 .config/nvim/plugin/packer_compiled.lua
-.bin/baggy
+.bin/wsftp
+.bin/stormdrain
+.bin/stormdrain_attach
 *.gpg

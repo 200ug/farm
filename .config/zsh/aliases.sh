@@ -26,6 +26,6 @@ alias getipv4="curl -s4 https://ip.antti.codes/"
 alias getipv6="curl -s6 https://ip.antti.codes/"
 
 # veracrypt (console build, cli-only)
-# alias veracrypt="/usr/bin/veracrypt -t"
-# alias vera-mount="/usr/bin/veracrypt -t /dev/disk/by-label/KNGSTN-A/zurich /mnt/zmount"
-# alias vera-umount="/usr/bin/veracrypt -t -u /mnt/zmount && sudo umount /dev/disk/by-label/KNGSTN-A"
+alias vera-mount="veracrypt /media/solar/KNGSTN-A/zurich /mnt/zmount"
+alias vera-umount="veracrypt --text --dismount /mnt/zmount && umount /media/solar/KNGSTN-A"
+

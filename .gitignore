@@ -2,4 +2,5 @@
 .bin/wsftp
 .bin/stormdrain
 .bin/stormdrain_attach
+.bin/feather-wallet
 *.gpg

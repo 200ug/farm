@@ -24,7 +24,7 @@ cmp.setup.filetype(
 
 local capabilities = require("cmp_nvim_lsp").default_capabilities()
 
-vim.lsp.config.pyright = { capabilities = capabilities }        -- python
+vim.lsp.config.basedpyright = { capabilities = capabilities }   -- python
 vim.lsp.config.clangd = { capabilities = capabilities }         -- c/cpp
 vim.lsp.config.gopls = { capabilities = capabilities }          -- golang
 vim.lsp.config.rust_analyzer = { capabilities = capabilities }  -- rustlang
@@ -35,7 +35,7 @@ vim.api.nvim_create_autocmd("FileType", {
     pattern = {"python", "c", "cpp", "go", "rust", "typescript", "typescriptreact", "javascript", "javascriptreact"},
     callback = function(args)
         vim.lsp.enable({
-            "pyright",
+            "basedpyright",
             "clangd",
             "gopls",
             "rust_analyzer",

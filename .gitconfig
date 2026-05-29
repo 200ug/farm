@@ -19,5 +19,8 @@
 	zip = archive --format=zip HEAD
 [commit]
 	gpgsign = true
+[push]
+    autoSetupRemote = true
+    default = simple
 [pull]
 	rebase = true

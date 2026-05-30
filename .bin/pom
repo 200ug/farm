@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+# depends on https://github.com/caarlos0/timer
+# (get the .deb from https://github.com/caarlos0/timer/releases)
+
+SP="$HOME/.local/share/sounds/pom.wav"
+
+usage() {
+    echo "usage: pom <work|chill>"
+}
+
+work() {
+    timer 50m --format 24h -n "Working..." && pw-play "$SP"
+}
+
+chill() {
+    timer 10m --format 24h -n "Chilling..." && pw-play "$SP"
+}
+
+! command -v timer &> /dev/null && echo "caarlos0/timer not installed" && exit 1
+[[ ! -f "$SP" ]] && echo "sound file for pw-play missing ($SP)" && exit 1
+[[ "$#" -ne 1 ]] && usage && exit 1
+
+case $1 in
+    work)
+        work
+        ;;
+    chill)
+        chill
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+esac
+

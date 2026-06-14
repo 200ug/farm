@@ -1,0 +1,2 @@
+forgejo     polku       ssh://git@codeberg.org/polku/{repo}.git
+github      polkusrc    git@github.com:polkusrc/{repo}.git

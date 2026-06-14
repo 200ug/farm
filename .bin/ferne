@@ -4,21 +4,34 @@
 # example mirrors config (note that order matters here: the first one will be the primary origin):
 #   forgejo     2ug     ssh://git@codeberg.org/2ug/{repo}.git
 #   github      200ug   git@github.com:200ug/{repo}.git
+#
+# org mirrors can be defined similarly, but they should be put into a separate 
+# file (ORG_MIRRORS_CFG, similarly ORG_TOKENS_ENV for secrets)
 #   
 # tokens file format (raw, i.e. before encryption):
 #   GITHUB_TOKEN <gh_token>
 #   FORGEJO_TOKEN <fj_token>
+#
+# fine-grained PATs should contain the following permissions (separately for each account/org):
+#   administration (r + w)  -> repo creation, deletion, etc.
+#   contents (r + w)        -> repo content edits (incl. commits, branches, downloads, etc.)
+#
+# rough equivalents in forgejo would be "write:repository" and "write:organization" 
+# (notably org-scoped tokens don't exist, thus the same token has access to both org & personal)
 
 set -euo pipefail
 
 PLACEHOLDER_DESCRIPTION="Repository created via the ferne mirroring system"
 MIRRORS_CFG="$HOME/.config/ferne/mirrors"
+ORG_MIRRORS_CFG="$HOME/.config/ferne/org_mirrors"
 # gpg --encrypt --recipient 1530F5132A1228578D2B4168995EFD5C1B532B3E tokens && shred -u tokens
 TOKENS_ENV="$HOME/.config/ferne/tokens.gpg"
+# gpg --encrypt --recipient 1530F5132A1228578D2B4168995EFD5C1B532B3E org_tokens && shred -u org_tokens
+ORG_TOKENS_ENV="$HOME/.config/ferne/org_tokens.gpg"
 
 GITHUB_API_BASE="https://api.github.com"
 FORGEJO_API_BASE="https://codeberg.org/api/v1"
-# todo: add cgit support later
+# TODO: add cgit support later (for personal repos)
 
 die() { echo "[!] error: $*" >&2; exit 1; }
 
@@ -95,7 +108,11 @@ create_repo() {
     case "$platform" in
         github)
             token="$GITHUB_TOKEN"
-            url="$GITHUB_API_BASE/user/repos"
+            if $org_mode; then
+                url="$GITHUB_API_BASE/orgs/$username/repos"
+            else
+                url="$GITHUB_API_BASE/user/repos"
+            fi
             payload=$(jq -n \
                 --arg name "$repo_name" \
                 --arg desc "$PLACEHOLDER_DESCRIPTION" \
@@ -104,7 +121,11 @@ create_repo() {
             ;;
         forgejo)
             token="$FORGEJO_TOKEN"
-            url="$FORGEJO_API_BASE/user/repos"
+            if $org_mode; then
+                url="$FORGEJO_API_BASE/orgs/$username/repos"
+            else
+                url="$FORGEJO_API_BASE/user/repos"
+            fi
             payload=$(jq -n \
                 --arg name "$repo_name" \
                 --arg desc "$PLACEHOLDER_DESCRIPTION" \
@@ -325,13 +346,16 @@ desc_handler() {
 }
 
 usage() {
-    echo "[?] usage: $0 [cmd]"
+    echo "[?] usage: ferne [cmd]"
     echo "      init             create new mirrored (public) repository"
     echo "      private          create new mirrored (private) repository"
     echo "      rename <name>    rename the (existing) mirrors"
     echo "      desc <content>   set description to mirrors"
     echo "      restore <name>   restore mirror remotes for existing repository"
     echo "      help             print this menu"
+    echo ""
+    echo "      prefix any command with \"corpo\" to use org mirror/token configs"
+    echo "      e.g.: ferne corpo init"
 }
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not inside a git repository"
@@ -343,6 +367,17 @@ mirror_users=()
 mirror_urls=()
 
 private=false
+org_mode=false
+
+# switch to org configs when invoked as: ferne corpo <cmd> [arg]
+if [[ "${1:-}" == "corpo" ]]; then
+    MIRRORS_CFG="$ORG_MIRRORS_CFG"
+    TOKENS_ENV="$ORG_TOKENS_ENV"
+    org_mode=true
+    shift
+fi
+
+[[ $# -eq 0 || $# -gt 2 ]] && die "invalid arguments, see help for more details"
 
 [[ $# -eq 0 || $# -gt 2 ]] && die "invalid arguments, see help for more details"
 

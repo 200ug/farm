@@ -1,0 +1,2 @@
+forgejo     oersk       ssh://git@codeberg.org/oersk/{repo}.git
+github      oersk       git@github.com:oersk/{repo}.git

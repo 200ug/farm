@@ -5,4 +5,5 @@
 .bin/feather-wallet
 .bin/BurpSuite
 .bin/tor-browser
+.stormdrain/
 *.gpg

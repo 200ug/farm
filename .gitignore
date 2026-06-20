@@ -3,4 +3,6 @@
 .bin/stormdrain
 .bin/stormdrain_attach
 .bin/feather-wallet
+.bin/BurpSuite
+.bin/tor-browser
 *.gpg

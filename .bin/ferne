@@ -5,8 +5,8 @@
 #   forgejo     2ug     ssh://git@codeberg.org/2ug/{repo}.git
 #   github      200ug   git@github.com:200ug/{repo}.git
 #
-# org mirrors can be defined similarly, but they should be put into a separate 
-# file (ORG_MIRRORS_CFG, similarly ORG_TOKENS_ENV for secrets)
+# org mirrors can be defined similarly, but they should be put into a separate directory
+# inside the ORGS_DIR (each org separately, within that dir. "mirrors" and "tokens.gpg")
 #   
 # tokens file format (raw, i.e. before encryption):
 #   GITHUB_TOKEN <gh_token>
@@ -23,15 +23,14 @@ set -euo pipefail
 
 PLACEHOLDER_DESCRIPTION="Repository created via the ferne mirroring system"
 MIRRORS_CFG="$HOME/.config/ferne/mirrors"
-ORG_MIRRORS_CFG="$HOME/.config/ferne/org_mirrors"
-# gpg --encrypt --recipient 1530F5132A1228578D2B4168995EFD5C1B532B3E tokens && shred -u tokens
-TOKENS_ENV="$HOME/.config/ferne/tokens.gpg"
+ORGS_DIR="$HOME/.config/ferne/orgs"
+# for each tokens file (personal & orgs): 
 # gpg --encrypt --recipient 1530F5132A1228578D2B4168995EFD5C1B532B3E org_tokens && shred -u org_tokens
-ORG_TOKENS_ENV="$HOME/.config/ferne/org_tokens.gpg"
+TOKENS_ENV="$HOME/.config/ferne/tokens.gpg"
 
 GITHUB_API_BASE="https://api.github.com"
 FORGEJO_API_BASE="https://codeberg.org/api/v1"
-# TODO: add cgit support later (for personal repos)
+# TODO: add cgit (etc.) support later (for personal repos)
 
 die() { echo "[!] error: $*" >&2; exit 1; }
 
@@ -354,13 +353,9 @@ usage() {
     echo "      restore <name>   restore mirror remotes for existing repository"
     echo "      help             print this menu"
     echo ""
-    echo "      prefix any command with \"corpo\" to use org mirror/token configs"
-    echo "      e.g.: ferne corpo init"
+    echo "      prefix any command with \"corpo <org_name>\" to use that org's mirror/token configs"
+    echo "      e.g.: \"ferne corpo acme init\" (the available orgs can be listed with \"ferne corpo ls\")"
 }
-
-repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not inside a git repository"
-repo_name="$(basename "$repo_root")"
-current_branch="$(git symbolic-ref --short HEAD 2>/dev/null)" || die "could not read branch name"
 
 mirror_platforms=()
 mirror_users=()
@@ -369,15 +364,27 @@ mirror_urls=()
 private=false
 org_mode=false
 
-# switch to org configs when invoked as: ferne corpo <cmd> [arg]
+# switch to org configs when invoked as: ferne corpo <org_name> <cmd> [arg]
 if [[ "${1:-}" == "corpo" ]]; then
-    MIRRORS_CFG="$ORG_MIRRORS_CFG"
-    TOKENS_ENV="$ORG_TOKENS_ENV"
+    if [[ "${2:-}" == "ls" ]]; then
+        [[ -d "$ORGS_DIR" ]] || { echo "(no orgs configured at $ORGS_DIR)"; exit 0; }
+        for d in "$ORGS_DIR"/*/; do
+            [[ -d "$d" ]] && basename "$d" || true
+        done
+        exit 0
+    fi
+
+    [[ $# -lt 3 ]] && die "corpo requires an org name and a command"
+
+    org_name="$2"
+    MIRRORS_CFG="$ORGS_DIR/$org_name/mirrors"
+    TOKENS_ENV="$ORGS_DIR/$org_name/tokens.gpg"
     org_mode=true
-    shift
+    shift 2
 fi
 
-[[ $# -eq 0 || $# -gt 2 ]] && die "invalid arguments, see help for more details"
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not inside a git repository"
+repo_name="$(basename "$repo_root")"
 
 [[ $# -eq 0 || $# -gt 2 ]] && die "invalid arguments, see help for more details"
 

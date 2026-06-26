@@ -13,8 +13,8 @@
 #   FORGEJO_TOKEN <fj_token>
 #
 # fine-grained PATs should contain the following permissions (separately for each account/org):
-#   administration (r + w)  -> repo creation, deletion, etc.
-#   contents (r + w)        -> repo content edits (incl. commits, branches, downloads, etc.)
+#   - administration (r + w)  -> repo creation, deletion, etc. 
+#   - contents (r + w)        -> repo content edits (incl. commits, branches, downloads, etc.)
 #
 # rough equivalents in forgejo would be "write:repository" and "write:organization" 
 # (notably org-scoped tokens don't exist, thus the same token has access to both org & personal)
@@ -65,10 +65,14 @@ parse_mirrors() {
     [[ -f "$MIRRORS_CFG" ]] || die "no mirrors config found at $MIRRORS_CFG"
 
     while IFS= read -r line; do
-        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue # skip blanks & comments
+        [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+
         read -r platform username ssh_template <<< "$line"
+        [[ -z "$platform" || -z "$username" || -z "$ssh_template" ]] && die "invalid mirror line: $line"
+
         mirror_platforms+=("$platform")
         mirror_users+=("$username")
+        mirror_templates+=("$ssh_template")
         mirror_urls+=("${ssh_template//\{repo\}/$repo_name}")
     done < "$MIRRORS_CFG"
 
@@ -99,7 +103,7 @@ repo_exists() {
 
 create_repo() {
     local platform="$1" username="$2"
-    local url token payload response http_status_code
+    local url token payload response http_status_code body
 
     local private_str_var="false"
     $private && private_str_var="true"
@@ -148,7 +152,8 @@ create_repo() {
         -d "$payload" \
         "$url")
 
-    http_status_code=$(echo "$response" | tail -1)
+    http_status_code="${response##*$'\n'}"
+    body="${response%$'\n'*}"
 
     case "$http_status_code" in
         201)
@@ -156,6 +161,7 @@ create_repo() {
             ;;
         *)
             printf "failed\n"
+            echo "[!] response body: $body" >&2
             die "api comms failed with unexpected http status $http_status_code"
             ;;
     esac
@@ -236,7 +242,7 @@ restore_handler() {
 
 rename_repo() {
     local platform="$1" username="$2" new_name="$3"
-    local url token payload response http_status_code
+    local url token payload response http_status_code body
 
     case "$platform" in
         github)
@@ -261,7 +267,8 @@ rename_repo() {
         -d "$payload" \
         "$url")
 
-    http_status_code=$(echo "$response" | tail -1)
+    http_status_code="${response##*$'\n'}"
+    body="${response%$'\n'*}"
 
     case "$http_status_code" in
         200)
@@ -269,6 +276,7 @@ rename_repo() {
             ;;
         *)
             printf "failed\n"
+            echo "[!] response body: $body" >&2
             die "api comms failed with unexpected http status $http_status_code"
             ;;
     esac
@@ -277,19 +285,19 @@ rename_repo() {
 rename_handler() {
     local new_name="$1"
     parse_mirrors
-
+    
     for i in "${!mirror_platforms[@]}"; do
         rename_repo "${mirror_platforms[$i]}" "${mirror_users[$i]}" "$new_name"
     done
-
-    # rebuild remote urls with new name
+    
     git config --unset-all remote.origin.pushurl 2>/dev/null || true
-
-    git remote set-url origin "${mirror_urls[0]//$repo_name/$new_name}"
-    echo "[+] updated origin: ${mirror_urls[0]//$repo_name/$new_name}"
-
-    for i in "${!mirror_urls[@]}"; do
-        local new_url="${mirror_urls[$i]//$repo_name/$new_name}"
+    
+    local new_origin_url="${mirror_templates[0]//\{repo\}/$new_name}"
+    git remote set-url origin "$new_origin_url"
+    echo "[+] updated origin: $new_origin_url"
+    
+    for i in "${!mirror_templates[@]}"; do
+        local new_url="${mirror_templates[$i]//\{repo\}/$new_name}"
         git remote set-url --add --push origin "$new_url"
         echo "[+] updated push url: $new_url"
     done
@@ -297,7 +305,7 @@ rename_handler() {
 
 describe_repo() {
     local platform="$1" username="$2" description="$3"
-    local url token payload response http_status_code
+    local url token payload response http_status_code body
 
     case "$platform" in
         github)
@@ -322,7 +330,8 @@ describe_repo() {
         -d "$payload" \
         "$url")
 
-    http_status_code=$(echo "$response" | tail -1)
+    http_status_code="${response##*$'\n'}"
+    body="${response%$'\n'*}"
 
     case "$http_status_code" in
         200)
@@ -330,6 +339,7 @@ describe_repo() {
             ;;
         *)
             printf "failed\n"
+            echo "[!] response body: $body" >&2
             die "api comms failed with unexpected http status $http_status_code"
             ;;
     esac
@@ -359,6 +369,7 @@ usage() {
 
 mirror_platforms=()
 mirror_users=()
+mirror_templates=()
 mirror_urls=()
 
 private=false

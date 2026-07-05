@@ -1,2 +1,0 @@
-forgejo     gspc        ssh://git@codeberg.org/gspc/{repo}.git
-github      gspcm       git@github.com:gspcm/{repo}.git

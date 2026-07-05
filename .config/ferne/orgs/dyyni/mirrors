@@ -1,0 +1,2 @@
+forgejo     dyyniorg        ssh://git@codeberg.org/dyyniorg/{repo}.git
+github      dyyniorg       git@github.com:dyyniorg/{repo}.git

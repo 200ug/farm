@@ -1,2 +1,2 @@
-forgejo     2ug     ssh://git@codeberg.org/2ug/{repo}.git
 github      200ug   git@github.com:200ug/{repo}.git
+forgejo     2ug     ssh://git@codeberg.org/2ug/{repo}.git

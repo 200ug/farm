@@ -38,6 +38,11 @@ require_cmd() {
     command -v "$1" &>/dev/null || die "'$1' required but not found in PATH"
 }
 
+prompt_description() {
+    read -rp "[?] repository description: " repo_description
+    [[ -z "$repo_description" ]] && repo_description="$PLACEHOLDER_DESCRIPTION"
+}
+
 export_tokens() {
     if [[ ! -f "$TOKENS_ENV" ]]; then
         die "no tokens file found at $TOKENS_ENV"
@@ -102,7 +107,7 @@ repo_exists() {
 }
 
 create_repo() {
-    local platform="$1" username="$2"
+    local platform="$1" username="$2" description="$3"
     local url token payload response http_status_code body
 
     local private_str_var="false"
@@ -118,7 +123,7 @@ create_repo() {
             fi
             payload=$(jq -n \
                 --arg name "$repo_name" \
-                --arg desc "$PLACEHOLDER_DESCRIPTION" \
+                --arg desc "$description" \
                 --argjson private "$private_str_var" \
                 '{name: $name, description: $desc, private: $private, auto_init: false}')
             ;;
@@ -131,7 +136,7 @@ create_repo() {
             fi
             payload=$(jq -n \
                 --arg name "$repo_name" \
-                --arg desc "$PLACEHOLDER_DESCRIPTION" \
+                --arg desc "$description" \
                 --argjson private "$private_str_var" \
                 '{name: $name, description: $desc, private: $private, auto_init: false}')
             ;;
@@ -169,6 +174,7 @@ create_repo() {
 
 repo_init() {
     parse_mirrors
+    prompt_description
 
     if ! git remote get-url origin &>/dev/null; then
         git remote add origin "${mirror_urls[0]}"
@@ -179,28 +185,12 @@ repo_init() {
     git config --unset-all remote.origin.pushurl 2>/dev/null || true
 
     for i in "${!mirror_platforms[@]}"; do
-        create_repo "${mirror_platforms[$i]}" "${mirror_users[$i]}" # skips if one already exists (bravely assuming no naming conflicts)
+        local desc="$repo_description"
+        (( i > 0 )) && desc="[MIRROR] $desc"
+        create_repo "${mirror_platforms[$i]}" "${mirror_users[$i]}" "$desc" # skips if one already exists (bravely assuming no naming conflicts)
         git remote set-url --add --push origin "${mirror_urls[$i]}"
         echo "[+] new remote push url: ${mirror_urls[$i]}"
     done
-}
-
-readme_init() {
-    local links=""
-
-    for i in "${!mirror_platforms[@]}"; do
-        local label username="${mirror_users[$i]}"
-
-        case "${mirror_platforms[$i]}" in
-            github)  label="[Github](https://github.com/$username/$repo_name)" ;;
-            forgejo) label="[Codeberg](https://codeberg.org/$username/$repo_name)" ;;
-        esac
-
-        [[ -n "$links" ]] && links="$links / "
-        links="$links$label"
-    done
-
-    echo -e "---\n\n###### Mirrors: $links" > README.md
 }
 
 restore_handler() {
@@ -350,14 +340,16 @@ desc_handler() {
     parse_mirrors
 
     for i in "${!mirror_platforms[@]}"; do
-        describe_repo "${mirror_platforms[$i]}" "${mirror_users[$i]}" "$description"
+        local desc="$description"
+        (( i > 0 )) && desc="[MIRROR] $desc"
+        describe_repo "${mirror_platforms[$i]}" "${mirror_users[$i]}" "$desc"
     done
 }
 
 usage() {
     echo "[?] usage: ferne [cmd]"
-    echo "      init             create new mirrored (public) repository"
-    echo "      private          create new mirrored (private) repository"
+    echo "      init             create new mirrored (public) repository (prompts for description)"
+    echo "      private          create new mirrored (private) repository (prompts for description)"
     echo "      rename <name>    rename the (existing) mirrors"
     echo "      desc <content>   set description to mirrors"
     echo "      restore <name>   restore mirror remotes for existing repository"
@@ -405,8 +397,8 @@ require_cmd jq
 require_cmd curl
 
 case "$1" in
-    init) export_tokens && repo_init && readme_init ;;
-    private) private=true; export_tokens && repo_init && readme_init ;;
+    init) export_tokens && repo_init ;;
+    private) private=true; export_tokens && repo_init ;;
     rename) [[ $# -ne 2 ]] && die "'rename' requires a new name argument"; export_tokens && rename_handler "$2" ;;
     desc) [[ $# -ne 2 ]] && die "'desc' requires a content argument"; export_tokens && desc_handler "$2" ;;
     restore) [[ $# -ne 2 ]] && die "'restore' requires a repository name argument"; export_tokens && restore_handler "$2" ;;

@@ -1,9 +1,13 @@
 .config/nvim/plugin/packer_compiled.lua
+.stormdrain/
+*.gpg
+
+# scripture
 .bin/wsftp
 .bin/stormdrain
 .bin/stormdrain_attach
 .bin/feather-wallet
 .bin/BurpSuite
 .bin/tor-browser
-.stormdrain/
-*.gpg
+.bin/dlrs
+

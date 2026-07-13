@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+
+# view images with sxiv & remove everything except the ones you marked
+# usage: trashchute [files...]
+
+set -euo pipefail
+shopt -s nullglob nocaseglob
+
+if [ "$#" -eq 0 ]; then
+    files=(*.jpg *.jpeg *.png *.gif *.bmp *.webp)
+else
+    files=("$@")
+fi
+
+if [ "${#files[@]}" -eq 0 ]; then
+    echo "[!] no images found" >&2
+    exit 1
+fi
+
+marked_file=$(mktemp)
+trap 'rm -f "$marked_file"' EXIT
+
+# -o: on quit, print marked files to stdout
+sxiv -o "${files[@]}" > "$marked_file"
+
+if [ ! -s "$marked_file" ]; then
+    echo "[!] no images were marked, nothing deleted" >&2
+    exit 1
+fi
+
+echo "[*] files that will be kept:"
+cat "$marked_file"
+echo
+read -rp "[?] delete everything else except the ones listed above? [y/n] " confirm
+[[ "$confirm" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
+
+declare -A keep
+while IFS= read -r line; do
+    keep["$line"]=1
+done < "$marked_file"
+
+for f in "${files[@]}"; do
+    if [[ -z "${keep[$f]:-}" ]]; then
+        rm -v -- "$f"
+    fi
+done
+

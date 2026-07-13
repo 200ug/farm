@@ -40,7 +40,9 @@ require_cmd() {
 
 prompt_description() {
     read -rp "[?] repository description: " repo_description
-    [[ -z "$repo_description" ]] && repo_description="$PLACEHOLDER_DESCRIPTION"
+    if [[ -z "$repo_description" ]]; then
+        repo_description="$PLACEHOLDER_DESCRIPTION"
+    fi
 }
 
 export_tokens() {

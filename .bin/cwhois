@@ -22,7 +22,7 @@ if [[ $browser -eq 1 ]]; then
 
     if [[ -n "$asn" ]]; then
         url="https://bgp.tools/as/$asn"
-        echo "[~] opening $url in browser"
+        echo "[*] opening $url in browser"
 
         if command -v xdg-open &>/dev/null; then
             xdg-open "$url" &>/dev/null &

@@ -2,5 +2,5 @@
 \.git
 \.gitignore
 \.gitkeep
+pre_utils
 packer_compiled\.lua
-mini\.sh

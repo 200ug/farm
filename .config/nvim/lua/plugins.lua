@@ -1,88 +1,65 @@
--- * installation handled automagically with the bootstrapping function *
-
--- :PackerCompile after plugin config changes
--- :PackerClean to remove disabled/unused plugins
--- :PackerInstall to clean and install new/missing plugins
--- :PackerUpdate to clean, update, and install plugins
--- :PackerStatus to list installed plugins
-
--- automatically run :PackerCompile whenever this file is updated
-vim.cmd([[
-  augroup packer_user_config
-    autocmd!
-    autocmd BufWritePost plugins.lua source <afile> | PackerCompile
-  augroup end
-]])
-
--- automatic bootstrapping on fresh systems (https://github.com/wbthomason/packer.nvim#bootstrapping)
-local ensure_packer = function()
-  local fn = vim.fn
-  local install_path = fn.stdpath('data')..'/site/pack/packer/start/packer.nvim'
-  if fn.empty(fn.glob(install_path)) > 0 then
-    fn.system({'git', 'clone', '--depth', '1', 'https://github.com/wbthomason/packer.nvim', install_path})
-    vim.cmd [[packadd packer.nvim]]
-    return true
-  end
-  return false
+local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+if not vim.loop.fs_stat(lazypath) then
+    vim.fn.system({
+        "git",
+        "clone",
+        "--filter=blob:none",
+        "https://github.com/folke/lazy.nvim.git",
+        "--branch=stable",
+        lazypath,
+    })
 end
-local packer_bootstrap = ensure_packer()
+vim.opt.rtp:prepend(lazypath)
 
-return require("packer").startup(function(use)
-    -- packer can manage itself
-    use "wbthomason/packer.nvim"
-
+require("lazy").setup({
     -- file tree
-    use {
+    {
         "nvim-tree/nvim-tree.lua",
-        requires = {
-            "nvim-tree/nvim-web-devicons", -- optional
-        },
-    }
+        dependencies = { "nvim-tree/nvim-web-devicons" },
+    },
 
     -- tabline
-    use "romgrk/barbar.nvim"
+    "romgrk/barbar.nvim",
 
     -- autopairs
-    use {
+    {
         "windwp/nvim-autopairs",
         event = "InsertEnter",
         config = function()
             require("nvim-autopairs").setup {}
         end,
-    }
+    },
 
     -- git gutter change indicators
-    use {
+    {
         "lewis6991/gitsigns.nvim",
         config = function()
             require("gitsigns").setup()
         end,
-    }
+    },
 
-    -- syntax highlighting (configs in treesitter.lua)
-    use {
+    -- syntax highlighting
+    {
         "nvim-treesitter/nvim-treesitter",
-        run = ":TSUpdate",
-    }
+        build = ":TSUpdate",
+    },
 
-    -- treesitter supported colorscheme
-    use "rebelot/kanagawa.nvim"
+    -- colorscheme
+    "rebelot/kanagawa.nvim",
 
-    -- lsp (configs in lsp.lua)
-    use "neovim/nvim-lspconfig"
-
-    -- autocompletion (configs in lsp.lua)
-    use "hrsh7th/nvim-cmp"
-    use "hrsh7th/cmp-nvim-lsp"
-    use "hrsh7th/cmp-buffer"
-    use "hrsh7th/cmp-path"
+    -- lsp & completion
+    "neovim/nvim-lspconfig",
+    "hrsh7th/nvim-cmp",
+    "hrsh7th/cmp-nvim-lsp",
+    "hrsh7th/cmp-buffer",
+    "hrsh7th/cmp-path",
 
     -- fuzzy finder
-    use {
+    {
         "nvim-telescope/telescope.nvim",
-        requires = {
+        dependencies = {
             "nvim-lua/plenary.nvim",
-            { "nvim-telescope/telescope-fzf-native.nvim", build = "make" }
+            { "nvim-telescope/telescope-fzf-native.nvim", build = "make" },
         },
         config = function()
             require("telescope").setup({
@@ -90,16 +67,17 @@ return require("packer").startup(function(use)
                     mappings = {
                         n = {
                             ["q"] = require("telescope.actions").close,
-                        }
-                    }
-                }
+                        },
+                    },
+                },
             })
         end,
+    },
+
+    -- hex color in-code colorization
+    {
+        "catgoose/nvim-colorizer.lua",
+        event = "BufReadPre",
+        opts = {},
     }
-
-    -- automatically setup configs after cloning packer.nvim (during bootstrapping)
-    if packer_bootstrap then
-        require('packer').sync()
-    end
-end)
-
+})

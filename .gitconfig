@@ -8,7 +8,7 @@
 	editor = nvim
 	autocrlf = input
 	safecrlf = false
-    excludesfile = ~/.config/gitignore
+    excludesfile = ~/.config/local_gitignore
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f

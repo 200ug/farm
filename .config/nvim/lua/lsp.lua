@@ -18,7 +18,7 @@ cmp.setup({
 -- disabled by default, enabled only for filetypes which have language server configured
 cmp.setup.filetype(
     -- to disable suggestions (but still keep the lsp running), simply remove the ext from here
-    { "python", "go", "rust", "c", "typescript", "typescriptreact", "javascript", "javascriptreact" },
+    { "python", "go", "rust", "c", "cpp", "zig", "zon", "typescript", "typescriptreact", "javascript", "javascriptreact" },
     { enabled = true }
 )
 
@@ -29,25 +29,43 @@ vim.lsp.config.clangd = { capabilities = capabilities }         -- c/cpp
 vim.lsp.config.gopls = { capabilities = capabilities }          -- golang
 vim.lsp.config.rust_analyzer = { capabilities = capabilities }  -- rustlang
 vim.lsp.config.ts_ls = { capabilities = capabilities }          -- typescript/javascript
+vim.lsp.config.zls = {}
 
--- auto enable lsp for correct filetypes
+vim.lsp.config.basedpyright = { capabilities = capabilities }   -- python
+vim.lsp.config.clangd = { capabilities = capabilities }         -- c/cpp
+vim.lsp.config.gopls = { capabilities = capabilities }          -- golang
+vim.lsp.config.rust_analyzer = { capabilities = capabilities }  -- rustlang
+vim.lsp.config.ts_ls = { capabilities = capabilities }          -- ts/js
+vim.lsp.config.zls = {                                          -- ziglang
+    capabilities = capabilities,
+    cmd = { "zls" },
+    filetypes = { "zig", "zon" },
+    root_markers = { "build.zig", "build.zig.zon", ".git" },
+    settings = {
+        zls = {
+            zig_exe_path = "/home/dev/.bin/zig", -- NOTE: only compatible with stormdrain containers!
+        },
+    },
+}
+
 vim.api.nvim_create_autocmd("FileType", {
-    pattern = {"python", "c", "cpp", "go", "rust", "typescript", "typescriptreact", "javascript", "javascriptreact"},
+    pattern = { "python", "c", "cpp", "go", "rust", "typescript", "typescriptreact", "javascript", "javascriptreact", "zig", "zon" },
     callback = function(args)
-        vim.lsp.enable({
-            "basedpyright",
-            "clangd",
-            "gopls",
-            "rust_analyzer",
-            "ts_ls",
-        })
+        local ft = vim.bo[args.buf].filetype
+        if ft == "python" then vim.lsp.enable("basedpyright") end
+        if ft == "c" or ft == "cpp" then vim.lsp.enable("clangd") end
+        if ft == "go" then vim.lsp.enable("gopls") end
+        if ft == "rust" then vim.lsp.enable("rust_analyzer") end
+        if ft == "typescript" or ft == "typescriptreact" or ft == "javascript" or ft == "javascriptreact" then
+            vim.lsp.enable("ts_ls")
+        end
+        if ft == "zig" or ft == "zon" then vim.lsp.enable("zls") end
     end,
 })
 
--- diagnostics on demand
+-- on-demand diagnostics
+-- "grn" mapped to variable rename by default
 vim.keymap.set("n", "gh", vim.diagnostic.open_float)
 vim.keymap.set("n", "gj", vim.diagnostic.goto_next)
 vim.keymap.set("n", "gk", vim.diagnostic.goto_prev)
-
--- "grn" mapped to variable rename by default
 

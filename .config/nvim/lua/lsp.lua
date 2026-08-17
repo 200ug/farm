@@ -28,13 +28,6 @@ vim.lsp.config.basedpyright = { capabilities = capabilities }   -- python
 vim.lsp.config.clangd = { capabilities = capabilities }         -- c/cpp
 vim.lsp.config.gopls = { capabilities = capabilities }          -- golang
 vim.lsp.config.rust_analyzer = { capabilities = capabilities }  -- rustlang
-vim.lsp.config.ts_ls = { capabilities = capabilities }          -- typescript/javascript
-vim.lsp.config.zls = {}
-
-vim.lsp.config.basedpyright = { capabilities = capabilities }   -- python
-vim.lsp.config.clangd = { capabilities = capabilities }         -- c/cpp
-vim.lsp.config.gopls = { capabilities = capabilities }          -- golang
-vim.lsp.config.rust_analyzer = { capabilities = capabilities }  -- rustlang
 vim.lsp.config.ts_ls = { capabilities = capabilities }          -- ts/js
 vim.lsp.config.zls = {                                          -- ziglang
     capabilities = capabilities,
@@ -48,18 +41,28 @@ vim.lsp.config.zls = {                                          -- ziglang
     },
 }
 
+local ft_to_server = {
+    python = "basedpyright",
+    c = "clangd",
+    cpp = "clangd",
+    go = "gopls",
+    rust = "rust_analyzer",
+    typescript = "ts_ls",
+    typescriptreact = "ts_ls",
+    javascript = "ts_ls",
+    javascriptreact = "ts_ls",
+    zig = "zls",
+    zon = "zls",
+}
+
 vim.api.nvim_create_autocmd("FileType", {
-    pattern = { "python", "c", "cpp", "go", "rust", "typescript", "typescriptreact", "javascript", "javascriptreact", "zig", "zon" },
+    pattern = vim.tbl_keys(ft_to_server),   -- automatically use all keys from the table
     callback = function(args)
         local ft = vim.bo[args.buf].filetype
-        if ft == "python" then vim.lsp.enable("basedpyright") end
-        if ft == "c" or ft == "cpp" then vim.lsp.enable("clangd") end
-        if ft == "go" then vim.lsp.enable("gopls") end
-        if ft == "rust" then vim.lsp.enable("rust_analyzer") end
-        if ft == "typescript" or ft == "typescriptreact" or ft == "javascript" or ft == "javascriptreact" then
-            vim.lsp.enable("ts_ls")
+        local server = ft_to_server[ft]
+        if server then
+            vim.lsp.enable(server)
         end
-        if ft == "zig" or ft == "zon" then vim.lsp.enable("zls") end
     end,
 })
 

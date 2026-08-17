@@ -1,0 +1,2 @@
+github      hsl-openstats       git@github.com:hsl-openstats/{repo}.git
+forgejo     hsl-openstats       ssh://git@codeberg.org/hsl-openstats/{repo}.git

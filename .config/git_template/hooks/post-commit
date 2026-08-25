@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+# Save this as a post-commit hook to use Git without leaking your timezone.
+# All commits will be in UTC±0000.
+
+set -euo pipefail
+
+hook_file="$(git rev-parse --show-toplevel)/.git/hooks/post-commit"
+chmod -x "$hook_file"
+
+trap 'chmod +x "$hook_file"' EXIT
+
+author_date=$(git log -1 --date=rfc2822 --format=%ad)
+commit_date=$(git log -1 --date=rfc2822 --format=%cd)
+
+unix_author_date=$(git log -1 --date=unix --format=%ad)
+unix_commit_date=$(git log -1 --date=unix --format=%cd)
+
+if [[ "$OSTYPE" == "linux-gnu" ]]
+then
+    utc_author_date=$(date -d @"$unix_author_date" -uR)
+    utc_commit_date=$(date -d @"$unix_commit_date" -uR)
+else
+    utc_author_date=$(date -juRr "$unix_author_date")
+    utc_commit_date=$(date -juRr "$unix_commit_date")
+fi
+
+if [[ "$utc_author_date" == "$author_date" ]] \
+    && [[ "$utc_commit_date" == "$commit_date" ]]
+then
+    exit 0
+else
+    echo "Setting AuthorDate: $utc_author_date"
+    echo "Setting CommitDate: $utc_commit_date"
+
+    export GIT_COMMITTER_DATE=$utc_commit_date
+    git commit --amend --no-edit --date="$utc_author_date" 2>/dev/null
+fi

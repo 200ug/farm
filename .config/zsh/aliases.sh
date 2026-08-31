@@ -21,6 +21,7 @@ alias mvdisc="mullvad disconnect"
 alias mvres="mullvad reconnect"
 alias pwdcp="pwd | wl-copy"
 alias asdf="stormdrain"
+alias wacom-settings="gnome-control-center wacom"
 
 # net address aliases
 alias getipv4="curl -s4 https://ip.antti.codes/"

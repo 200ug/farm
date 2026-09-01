@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+
+# set keyboard shortcuts based on setup layout
+
+MONITOR_LAYOUT_PATH="$HOME/.config/monitors.xml"
+
+usage() {
+    echo "[!] usage: $0 <beijing|shenzen>"
+}
+
+apply_layout() {
+    [[ ! -f "$1" ]] && echo "[!] monitor layout file $1 not found" && exit 1
+    cp "$1" "$MONITOR_LAYOUT_PATH"
+    pkill -SIGUSR1 -f "gnome-shell"
+}
+
+[[ "$#" -ne 1 ]] && usage && exit 1
+
+echo "[*] gnome session will be restarted, quit/save all important programs"
+read -p "[?] confirm to proceed (y/n): " ans
+case "$ans" in
+    [yY])
+        ;;
+    *)
+        echo "[!] aborting..."
+        exit 0
+        ;;
+esac
+
+case "$1" in
+    "beijing")
+        # widescreen on top, laptop on bottom
+        apply_layout "$HOME/.config/gw_monitors/monitors_beijing.xml"
+        echo "[+] monitors.xml updated"
+        # reset left-right movement, enable up-down
+        gsettings set org.gnome.desktop.wm.keybindings move-to-monitor-down "['<Control><Alt>m']"
+        gsettings set org.gnome.desktop.wm.keybindings move-to-monitor-left "['<Super><Shift>Left']"
+        gsettings set org.gnome.desktop.wm.keybindings move-to-monitor-right "['<Super><Shift>Right']"
+        gsettings set org.gnome.desktop.wm.keybindings move-to-monitor-up "['<Control><Alt>i']"
+        echo "[+] kb shortcuts updated"
+        ;;
+    "shenzen")
+        # widescreen on left, laptop on right
+        apply_layout "$HOME/.config/gw_monitors/monitors_shenzen.xml"
+        echo "[+] monitors.xml updated"
+        # enable left-right movement, reset up-down
+        gsettings set org.gnome.desktop.wm.keybindings move-to-monitor-down "['<Super><Shift>Down']"
+        gsettings set org.gnome.desktop.wm.keybindings move-to-monitor-left "['<Control><Alt>i']"
+        gsettings set org.gnome.desktop.wm.keybindings move-to-monitor-right "['<Control><Alt>m']"
+        gsettings set org.gnome.desktop.wm.keybindings move-to-monitor-up "['<Super><Shift>Up']"
+        echo "[+] kb shortcuts updated"
+        ;;
+    *)
+        usage && exit 1
+        ;;
+esac
+
